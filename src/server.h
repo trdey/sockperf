@@ -30,6 +30,9 @@
 #define SERVER_H_
 
 #include "common.h"
+#include <unistd.h>
+
+FILE *bufferDumpFile;
 
 #ifdef ST_TEST
 extern int prepare_socket(int fd, struct fds_data *p_data, bool stTest = false);
@@ -150,6 +153,17 @@ void close_ifd(int fd, int ifd, fds_data *l_fds_ifd) {
             break;
         }
     }
+    if(bufferDumpFile)
+        fclose(bufferDumpFile);
+}
+//------------------------------------------------------------------------------
+
+std::string generateDumpFileName(std::string ip)
+{
+    std::string sockperfDataFile = "/bufferdump";
+    sockperfDataFile.insert(0,s_user_params.sockperfDumpDataDirectory);
+
+    return sockperfDataFile;
 }
 //------------------------------------------------------------------------------
 /*
@@ -254,6 +268,15 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
         printf(">>> ");
         hexdump(m_pMsgReply->getBuf(), MsgHeader::EFFECTIVE_SIZE);
 #endif /* LOG_TRACE_MSG_IN */
+        if (s_user_params.sockperfDumpDataToFile)
+            {
+                log_msg_buffer_file(bufferDumpFile, m_pMsgReply->getBuf());
+                if (fflush(bufferDumpFile)!= 0)
+                    log_msg("Could not flush file buffer");
+          
+                if(fsync(fileno(bufferDumpFile)) < 0)
+                    log_msg("Could not flush buffer to OS disk");
+            }
 
         if (g_b_exit) return (!do_update);
         if (!m_pMsgReply->isClient()) {
