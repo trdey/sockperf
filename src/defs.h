@@ -677,6 +677,7 @@ struct user_params_t {
     uint32_t rate_limit;
     bool sockperfDumpDataToFile;
     std::string sockperfDumpDataDirectory;
+	uint32_t syncFlag;
 };
 
 struct mutable_params_t {};

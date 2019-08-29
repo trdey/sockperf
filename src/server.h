@@ -271,11 +271,33 @@ inline bool Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_receive_t
         if (s_user_params.sockperfDumpDataToFile)
             {
                 log_msg_buffer_file(bufferDumpFile, m_pMsgReply->getBuf());
-                if (fflush(bufferDumpFile)!= 0)
-                    log_msg("Could not flush file buffer");
-          
-                if(fsync(fileno(bufferDumpFile)) < 0)
-                    log_msg("Could not flush buffer to OS disk");
+				
+				switch (s_user_params.syncFlag)
+				{
+					case 1:
+						log_msg("Entered in case 1 for writing the data");
+						if (fflush(bufferDumpFile)!= 0)
+						log_err("Could not flush file buffer to kernel in case 1");
+					    break;
+			    	case 2:
+					    	log_msg("Entered in case 2 for writing the data");
+						if(fsync(fileno(bufferDumpFile)) < 0)
+						log_err("Could not sync buffer to disk in case 2");
+					    break;
+					case 4:
+					    	log_msg("Entered in case 4 for writing the data");
+						if (fflush(bufferDumpFile)!= 0)
+						log_err("Could not flush file buffer to kernel in case 4");
+
+						if(fsync(fileno(bufferDumpFile)) < 0)
+						log_err("Could not sync buffer to disk in case 4");
+					    break;
+                    			case 0:
+                    			case 3:
+					default:
+					    log_msg("Entered in case 0, 3, dafault for writing the data");
+					    break;
+				}
             }
 
         if (g_b_exit) return (!do_update);

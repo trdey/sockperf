@@ -330,13 +330,58 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
                                     log_msg("%s","unable to create directory structure");
                                 }
                                 sockperfDataFile = generateDumpFileName(inet_ntoa(addr.sin_addr));
-                                bufferDumpFile = fopen(sockperfDataFile.c_str(), "w+");
+								
+								int fd = 0;
+								
+								switch (s_user_params.syncFlag)
+								{
+									case 1:
+									    log_msg("Got the request under case 1. Opening file");
+									    fd = open(sockperfDataFile.c_str(), O_CREAT | O_RDWR | O_DSYNC, "w+");
+										if (fd > 0)
+										{
+											bufferDumpFile = fdopen(fd, "w+");
+										}
+										else
+										{
+											log_err("The requested dump file could not be opened for case 1");
+										}
+									    break;
+									case 2:
+									    log_msg("Got the request under case 2. Opening file");
+									    fd = open(sockperfDataFile.c_str(), O_CREAT | O_RDWR | O_DIRECT, "w+");
+										if (fd > 0)
+										{
+											bufferDumpFile = fdopen(fd, "w+");
+										}
+										else
+										{
+											log_err("The requested dump file could not be opened for case 2");
+										}
+									    break;
+									case 3:
+									    log_msg("Got the request under case 3. Opening file");
+									    fd = open(sockperfDataFile.c_str(), O_CREAT | O_RDWR | O_DIRECT | O_DSYNC, "w+");
+										if (fd > 0)
+										{
+											bufferDumpFile = fdopen(fd, "w+");
+										}
+										else
+										{
+											log_err("The requested dump file could not be opened for case 3");
+										}
+									    break;
+                                    case 0:
+                                    case 4:
+									default:
+									    bufferDumpFile = fopen(sockperfDataFile.c_str(), "w+");
+									    break;
+								}
                                 if (!bufferDumpFile)
                                 {
                                     log_msg("%s","unable to open file");
                                 }
                             }
-
                             break;
                         }
                     }
