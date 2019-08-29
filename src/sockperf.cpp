@@ -274,6 +274,12 @@ static const AOPT_DESC common_opt_desc[] = {
       "Set socket accleration before run (available for some of Mellanox systems)" },
     { 'd',                      AOPT_NOARG,                      aopt_set_literal('d'),
       aopt_set_string("debug"), "Print extra debug information." },
+    { 'e',                      AOPT_NOARG,                      aopt_set_literal('e'),
+      aopt_set_string("enable"), "Enable sockperf data dump to file. (Disabled by default)" },
+    { 'o',                      AOPT_ARG,                      aopt_set_literal('o'),
+      aopt_set_string("outputDirectory"), "Provide data dump directory for sockperf. (Default : /usr/local/sockperf)" },
+	{ 's',                      AOPT_ARG,                      aopt_set_literal('s'),
+      aopt_set_string("sync"),   "Option to write data to disk. (0: None with only fWrite, 1: DSYNC, 2: DIRECT, 3: DSYNC | DIRECT, 4: None wth all fw+ff+fs)" },
     { 0, AOPT_NOARG, aopt_set_literal(0), aopt_set_string(NULL), NULL }
 };
 
@@ -1548,6 +1554,26 @@ static int parse_common_opt(const AOPT_OBJECT *common_obj) {
                 s_user_params.fd_handler_type = RECVFROM;
             }
         }
+        
+        if (!rc && aopt_check(common_obj, 'e')) {
+            s_user_params.sockperfDumpDataToFile = true;
+        }
+
+        if (!rc && aopt_check(common_obj, 'o')) {
+            const char *optarg = aopt_value(common_obj, 'o');
+            s_user_params.sockperfDumpDataDirectory = std::string(optarg);
+        }
+		
+		if (!rc && aopt_check(common_obj, 's')) {
+            const char *optarg = aopt_value(common_obj, 's');
+			uint32_t value = strtol(optarg, NULL, 0);
+			if (value > 0) {
+				s_user_params.syncFlag = value;
+			} else {
+				log_err("'-%d' Invalid sync flag value: %s . Setting the value to default: 0", value, optarg);
+				s_user_params.syncFlag = value;
+			}
+		}
 
         if (!rc && aopt_check(common_obj, 'p')) {
             const char *optarg = aopt_value(common_obj, 'p');
@@ -2224,6 +2250,9 @@ void set_defaults() {
     s_user_params.dummy_mps = 0;
     memset(s_user_params.feedfile_name, 0, sizeof(s_user_params.feedfile_name));
     s_user_params.tos = 0x00;
+    s_user_params.sockperfDumpDataToFile = false;
+    s_user_params.sockperfDumpDataDirectory = "/usr/local/sockperf";
+	s_user_params.syncFlag = 0;
 }
 
 //------------------------------------------------------------------------------
