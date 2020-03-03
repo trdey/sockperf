@@ -416,7 +416,20 @@ int Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::server_accept(int ifd) {
             }
         }
     }
-
+    else if (g_fds_array[ifd]->sock_type == SOCK_DGRAM) {
+        if (s_user_params.sockperfDumpDataToFile) {
+            retVal = system((createSockperfDirectoryCommand.append(s_user_params.sockperfDumpDataDirectory)).c_str());
+            if(retVal != 0)
+            {
+                log_msg("%s","unable to create directory structure");
+            }
+            sockperfDataFile = generateDumpFileName("UDPSOCKET");
+            bufferDumpFile = fopen(sockperfDataFile.c_str(), "w+");
+            if(!bufferDumpFile) {
+                log_msg("%s","unable to open file");
+            }
+        }
+    }
     return active_ifd;
 }
 
