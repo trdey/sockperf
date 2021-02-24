@@ -119,6 +119,7 @@ const uint32_t REPLY_EVERY_DEFAULT = 100;
 
 const uint32_t TEST_START_WARMUP_MSEC = 400;
 const uint32_t TEST_END_COOLDOWN_MSEC = 50;
+const uint32_t TEST_SERVER_BUFFERTIME_SEC = 20;
 
 const uint32_t TEST_FIRST_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC = 50;
 #define TEST_ANY_CONNECTION_FIRST_PACKET_TTL_THRESHOLD_MSEC (0.1)
@@ -604,6 +605,12 @@ typedef enum {
     MODE_BRIDGE
 } work_mode_t;
 
+
+typedef enum{
+   CONNECTION_IDLE = 0,
+   CONNECTION_ACCEPTED
+}connection_state_t;
+
 typedef enum { // must be coordinated with s_fds_handle_desc in common.cpp
     RECVFROM = 0,
     RECVFROMMUX,
@@ -647,6 +654,7 @@ struct user_params_t {
     bool b_server_reply_via_uc;
     bool b_server_dont_reply;
     bool b_server_detect_gaps;
+    bool b_server_quit;
     uint32_t mps; // client side only
     struct sockaddr_in client_bind_info;
     uint32_t reply_every;    // client side only

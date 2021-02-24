@@ -35,6 +35,7 @@
 static CRITICAL_SECTION thread_exit_lock;
 static os_thread_t *thread_pid_array = NULL;
 
+void server_sig_handler(int);
 //==============================================================================
 
 //------------------------------------------------------------------------------
@@ -51,6 +52,19 @@ ServerBase::ServerBase(IoHandler &_ioHandler) : m_ioHandlerRef(_ioHandler) {
 ServerBase::~ServerBase() {
     delete m_pMsgReply;
     delete m_pMsgRequest;
+}
+
+
+//------------------------------------------------------------------------------
+/* set the timer on server to the [-t sec] parameter given by user */
+void set_server_timer(struct itimerval *timer) {
+    timer->it_value.tv_sec =
+        (g_pApp->m_const_params.warmup_msec) / 1000 +
+        g_pApp->m_const_params.sec_test_duration + TEST_SERVER_BUFFERTIME_SEC;
+    timer->it_value.tv_usec =
+        (g_pApp->m_const_params.warmup_msec) % 1000;
+    timer->it_interval.tv_sec = 0;
+    timer->it_interval.tv_usec = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -164,8 +178,16 @@ Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::~Server() {}
 //------------------------------------------------------------------------------
 template <class IoType, class SwitchActivityInfo, class SwitchCalcGaps>
 void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop() {
+    connection_state_t connectionState = CONNECTION_IDLE;
     int numReady = 0;
     int actual_fd = 0;
+    if (g_pApp->m_const_params.sec_test_duration > DEFAULT_TEST_DURATION &&
+                (g_pApp->m_const_params.sock_type == SOCK_DGRAM || !g_pApp->m_const_params.b_server_quit))
+    {
+        struct itimerval timer;
+        set_server_timer(&timer);
+        os_set_duration_timer(timer, server_sig_handler);
+    }
 
     while (!g_b_exit) {
         // wait for arrival
@@ -226,6 +248,12 @@ void Server<IoType, SwitchActivityInfo, SwitchCalcGaps>::doLoop() {
         /* do update of active fd in case accept/close was occured */
         if (do_update) {
             m_ioHandler.update();
+            if((g_pApp->m_const_params.b_server_quit))
+            {
+                if (connectionState == CONNECTION_IDLE)
+                    connectionState = CONNECTION_ACCEPTED;
+                else g_b_exit = true;
+            }
         }
 
         assert(!numReady && "all waiting descriptors should have been processed");
@@ -567,6 +595,9 @@ void server_sig_handler(int signum) {
         switch (signum) {
         case SIGINT:
             log_msg("Test end (interrupted by user)");
+            break;
+        case SIGALRM:
+            log_msg("Test end (interrupted by timer)");
             break;
         default:
             log_msg("Test end (interrupted by signal %d)", signum);

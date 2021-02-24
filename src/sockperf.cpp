@@ -1342,6 +1342,8 @@ static int proc_mode_server(int id, int argc, const char **argv) {
         { OPT_THREADS_NUM,                                         AOPT_ARG,
           aopt_set_literal(0),                                     aopt_set_string("threads-num"),
           "Run <N> threads on server side (requires '-f' option)." },
+        { 'q', AOPT_NOARG, aopt_set_literal('q'), aopt_set_string("quit"), "sets that server quits after first cnnection expires(only for TCP)" },
+        { 't', AOPT_ARG, aopt_set_literal('t'), aopt_set_string("time"), "Run for <sec> seconds (default 1, max = 36000000)." },
         { OPT_THREADS_AFFINITY,
           AOPT_ARG,
           aopt_set_literal(0),
@@ -1471,9 +1473,36 @@ static int proc_mode_server(int id, int argc, const char **argv) {
                 }
             }
         }
+        if (!rc && aopt_check(server_obj, 't')) {
+            const char *optarg = aopt_value(server_obj, 't');
+            if (optarg) {
+                errno = 0;
+                int value = strtol(optarg, NULL, 0);
+                if (errno != 0 || value <= 0 || value > MAX_DURATION) {
+                    log_msg("'-%c' Invalid duration: %s", 't', optarg);
+                    rc = SOCKPERF_ERR_BAD_ARGUMENT;
+                } else {
+                    s_user_params.sec_test_duration = value;
+                }
+            } else {
+                log_msg("'-%c' Invalid value", 't');
+                rc = SOCKPERF_ERR_BAD_ARGUMENT;
+            }
+        }
 
         if (!rc && aopt_check(server_obj, 'g')) {
             s_user_params.b_server_detect_gaps = true;
+        }
+        if (!rc && aopt_check(server_obj,'q')){
+             if (!aopt_check(common_obj, OPT_TCP)) {
+                 log_msg("-q option is valid only with --tcp option, does not work for udp");
+                 rc = SOCKPERF_ERR_BAD_ARGUMENT;
+             } else {
+                 if(aopt_check(server_obj,'t')){
+                     log_msg("both -t and -q options exist, ignoring -t option");
+                 }
+                 s_user_params.b_server_quit = true;
+             }
         }
     }
 
@@ -2218,6 +2247,7 @@ void set_defaults() {
     s_user_params.b_server_reply_via_uc = false;
     s_user_params.b_server_dont_reply = false;
     s_user_params.b_server_detect_gaps = false;
+    s_user_params.b_server_quit = false;
 
     s_user_params.mps = MPS_DEFAULT;
     s_user_params.reply_every = REPLY_EVERY_DEFAULT;
@@ -3354,6 +3384,7 @@ client_work_with_srv_num = %d \n\t\
 b_server_reply_via_uc = %d \n\t\
 b_server_dont_reply = %d \n\t\
 b_server_detect_gaps = %d\n\t\
+b_server_quit = %d\n\t\
 mps = %d \n\t\
 client_bind_info = %s:%d \n\t\
 reply_every = %d \n\t\
@@ -3377,7 +3408,7 @@ packet pace limit = %d",
             s_user_params.is_vmazcopyread, s_user_params.mc_loop_disable, s_user_params.mc_ttl,
             s_user_params.uc_reuseaddr, s_user_params.tcp_nodelay,
             s_user_params.client_work_with_srv_num, s_user_params.b_server_reply_via_uc,
-            s_user_params.b_server_dont_reply, s_user_params.b_server_detect_gaps,
+            s_user_params.b_server_dont_reply, s_user_params.b_server_detect_gaps, s_user_params.b_server_quit,
             s_user_params.mps, inet_ntoa(s_user_params.client_bind_info.sin_addr),
             ntohs(s_user_params.client_bind_info.sin_port), s_user_params.reply_every,
             s_user_params.b_client_ping_pong, s_user_params.b_no_rdtsc,
